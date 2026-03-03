@@ -1,0 +1,70 @@
+# grekt CI Setup Template for GitLab
+#
+# Usage:
+#   include:
+#     - remote: "https://raw.githubusercontent.com/grekt-labs/actions/main/gitlab/templates/setup.yml"
+#
+#   my-job:
+#     extends: .grekt-setup
+#     variables:
+#       GREKT_VERSION: "latest"
+#       GREKT_REGISTRIES: |
+#         "@my-scope":
+#           url: https://cdn.grekt.com
+#           token: ${GREKT_TOKEN}
+#     script:
+#       - grekt install
+#       - grekt publish
+
+.grekt-setup:
+  variables:
+    GREKT_VERSION: "latest"
+    GREKT_REGISTRIES: ""
+    GREKT_GIT_USER_NAME: ""
+    GREKT_GIT_USER_EMAIL: ""
+    GREKT_GIT_TOKEN: ""
+
+  before_script:
+    # Ensure npm is available — install Node if missing
+    - |
+      if ! command -v node &> /dev/null; then
+        echo "Node.js not found, attempting to install..."
+        if command -v apk &> /dev/null; then
+          apk add --no-cache nodejs npm
+        elif command -v apt-get &> /dev/null; then
+          apt-get update -qq && apt-get install -y -qq nodejs npm
+        else
+          echo "ERROR: Cannot install Node.js — unsupported package manager"
+          echo "Use a base image with Node.js pre-installed"
+          exit 1
+        fi
+      fi
+
+    # Install grekt CLI
+    - npm install -g "@grekt/cli@${GREKT_VERSION}"
+
+    # Generate config from GREKT_REGISTRIES variable
+    - |
+      if [ -n "$GREKT_REGISTRIES" ]; then
+        mkdir -p .grekt
+        echo "registries:" > .grekt/config.yaml
+        echo "$GREKT_REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
+      fi
+
+    # Configure git (only if provided)
+    - |
+      if [ -n "$GREKT_GIT_USER_NAME" ] && [ -n "$GREKT_GIT_USER_EMAIL" ]; then
+        git config user.name "$GREKT_GIT_USER_NAME"
+        git config user.email "$GREKT_GIT_USER_EMAIL"
+      fi
+
+    # Set authenticated remote if token provided
+    - |
+      if [ -n "$GREKT_GIT_TOKEN" ]; then
+        REPO_URL=$(git remote get-url origin)
+        AUTHENTICATED_URL=$(echo "$REPO_URL" | sed "s|https://gitlab.com/|https://gitlab-ci-token:${GREKT_GIT_TOKEN}@gitlab.com/|")
+        git remote set-url origin "$AUTHENTICATED_URL"
+      fi
+
+    # Verify installation
+    - grekt --version

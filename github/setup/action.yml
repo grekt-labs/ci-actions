@@ -1,0 +1,92 @@
+name: "Setup grekt"
+description: "Install grekt CLI and configure the CI environment (runtime, registries, git)"
+
+inputs:
+  grekt-version:
+    description: "Version of grekt CLI to install (latest, beta, or semver like 6.42.0)"
+    required: false
+    default: "latest"
+  registries:
+    description: "Inline YAML with registry definitions (will be wrapped under registries: key)"
+    required: false
+    default: ""
+  runtime:
+    description: "Runtime to use: node or bun"
+    required: false
+    default: "node"
+  runtime-version:
+    description: "Runtime version to install"
+    required: false
+    default: "22"
+  git-user-name:
+    description: "Git user.name for commits"
+    required: false
+    default: ""
+  git-user-email:
+    description: "Git user.email for commits"
+    required: false
+    default: ""
+  git-token:
+    description: "Token for git push (sets authenticated remote URL)"
+    required: false
+    default: ""
+
+outputs:
+  grekt-version:
+    description: "Installed grekt CLI version"
+    value: ${{ steps.version.outputs.grekt-version }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node
+      if: inputs.runtime == 'node'
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.runtime-version }}
+
+    - name: Setup Bun
+      if: inputs.runtime == 'bun'
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: ${{ inputs.runtime-version }}
+
+    - name: Install grekt CLI
+      shell: bash
+      run: |
+        # Works for npm dist-tags (latest, beta) and exact semver alike
+        npm install -g "@grekt/cli@${{ inputs.grekt-version }}"
+
+    - name: Generate config
+      if: inputs.registries != ''
+      shell: bash
+      env:
+        REGISTRIES: ${{ inputs.registries }}
+      run: |
+        mkdir -p .grekt
+        echo "registries:" > .grekt/config.yaml
+        echo "$REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
+
+    - name: Configure git
+      if: inputs.git-user-name != '' && inputs.git-user-email != ''
+      shell: bash
+      run: |
+        git config user.name "${{ inputs.git-user-name }}"
+        git config user.email "${{ inputs.git-user-email }}"
+
+    - name: Set git remote with token
+      if: inputs.git-token != ''
+      shell: bash
+      env:
+        GIT_TOKEN: ${{ inputs.git-token }}
+      run: |
+        REPO_URL=$(git remote get-url origin)
+        AUTHENTICATED_URL=$(echo "$REPO_URL" | sed "s|https://github.com/|https://x-access-token:${GIT_TOKEN}@github.com/|")
+        git remote set-url origin "$AUTHENTICATED_URL"
+
+    - name: Output installed version
+      id: version
+      shell: bash
+      run: |
+        INSTALLED_VERSION=$(grekt --version)
+        echo "grekt-version=$INSTALLED_VERSION" >> "$GITHUB_OUTPUT"
