@@ -1,0 +1,163 @@
+name: Test actions
+on: push
+
+jobs:
+  registries-single:
+    name: "Config: single registry"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./github/setup
+        with:
+          runtime: node
+          runtime-version: "22"
+          registries: |
+            "@test-scope":
+              type: npm
+              url: https://registry.npmjs.org
+              token: fake-token
+      - name: Validate YAML
+        run: |
+          cat .grekt/config.yaml
+          npx -y yaml@2 -o json < .grekt/config.yaml | node -e "
+            const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const r = d.registries['@test-scope'];
+            if (!r || r.type !== 'npm') { console.error('FAIL', JSON.stringify(d)); process.exit(1); }
+            console.log('PASS - single registry');
+          "
+
+  registries-multiple:
+    name: "Config: multiple registries"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./github/setup
+        with:
+          runtime: node
+          runtime-version: "22"
+          registries: |
+            "@scope-a":
+              type: gitlab
+              project: org/artifacts
+              host: https://gitlab.com
+              prefix: frontend
+              token: token-a
+            "@scope-b":
+              type: gitlab
+              project: org/artifacts
+              host: https://gitlab.com
+              prefix: backend
+              token: token-b
+            "@scope-c":
+              type: gitlab
+              project: org/artifacts
+              host: https://gitlab.com
+              prefix: shared
+              token: token-c
+      - name: Validate YAML
+        run: |
+          cat .grekt/config.yaml
+          npx -y yaml@2 -o json < .grekt/config.yaml | node -e "
+            const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+            const keys = Object.keys(d.registries);
+            if (keys.length !== 3) { console.error('FAIL - expected 3, got', keys.length); process.exit(1); }
+            console.log('PASS - 3 registries:', keys);
+          "
+
+  no-registries:
+    name: "Config: no registries"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./github/setup
+        with:
+          runtime: node
+          runtime-version: "22"
+      - name: Validate no config
+        run: |
+          if [ -f .grekt/config.yaml ]; then
+            echo "FAIL - config.yaml should not exist"
+            exit 1
+          fi
+          echo "PASS - no config generated"
+
+  git-config:
+    name: "Git: user config"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./github/setup
+        with:
+          runtime: node
+          runtime-version: "22"
+          git-user-name: "Test Bot"
+          git-user-email: "bot@grekt.com"
+      - name: Validate git config
+        run: |
+          NAME=$(git config user.name)
+          EMAIL=$(git config user.email)
+          if [ "$NAME" != "Test Bot" ] || [ "$EMAIL" != "bot@grekt.com" ]; then
+            echo "FAIL - name=$NAME email=$EMAIL"
+            exit 1
+          fi
+          echo "PASS - name=$NAME email=$EMAIL"
+
+  git-ssh-remote:
+    name: "Git: SSH remote conversion"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git remote set-url origin "git@github.com:grekt-labs/ci-actions.git"
+      - uses: ./github/setup
+        with:
+          runtime: node
+          runtime-version: "22"
+          git-token: "fake-token-ssh"
+      - name: Validate remote
+        run: |
+          URL=$(git remote get-url origin)
+          if ! echo "$URL" | grep -q "x-access-token:fake-token-ssh@github.com/grekt-labs/ci-actions.git"; then
+            echo "FAIL - $URL"
+            exit 1
+          fi
+          echo "PASS - SSH converted: $URL"
+
+  git-https-remote:
+    name: "Git: HTTPS remote auth"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git remote set-url origin "https://github.com/grekt-labs/ci-actions.git"
+      - uses: ./github/setup
+        with:
+          runtime: node
+          runtime-version: "22"
+          git-token: "fake-token-https"
+      - name: Validate remote
+        run: |
+          URL=$(git remote get-url origin)
+          EXPECTED="https://x-access-token:fake-token-https@github.com/grekt-labs/ci-actions.git"
+          if [ "$URL" != "$EXPECTED" ]; then
+            echo "FAIL - got: $URL"
+            exit 1
+          fi
+          echo "PASS - $URL"
+
+  grekt-version-output:
+    name: "Output: grekt version"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: setup
+        uses: ./github/setup
+        with:
+          runtime: node
+          runtime-version: "22"
+      - name: Validate version output
+        run: |
+          VERSION="${{ steps.setup.outputs.grekt-version }}"
+          if [ -z "$VERSION" ]; then
+            echo "FAIL - no version output"
+            exit 1
+          fi
+          echo "PASS - grekt version: $VERSION"
