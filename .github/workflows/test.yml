@@ -19,8 +19,9 @@ jobs:
       - name: Validate YAML
         run: |
           cat .grekt/config.yaml
-          npx -y yaml@2 -o json < .grekt/config.yaml | node -e "
-            const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+          npm install --no-save yaml 2>/dev/null
+          node -e "
+            const d = require('yaml').parse(require('fs').readFileSync('.grekt/config.yaml','utf8'));
             const r = d.registries['@test-scope'];
             if (!r || r.type !== 'npm') { console.error('FAIL', JSON.stringify(d)); process.exit(1); }
             console.log('PASS - single registry');
@@ -57,8 +58,9 @@ jobs:
       - name: Validate YAML
         run: |
           cat .grekt/config.yaml
-          npx -y yaml@2 -o json < .grekt/config.yaml | node -e "
-            const d = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+          npm install --no-save yaml 2>/dev/null
+          node -e "
+            const d = require('yaml').parse(require('fs').readFileSync('.grekt/config.yaml','utf8'));
             const keys = Object.keys(d.registries);
             if (keys.length !== 3) { console.error('FAIL - expected 3, got', keys.length); process.exit(1); }
             console.log('PASS - 3 registries:', keys);
