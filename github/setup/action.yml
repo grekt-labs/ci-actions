@@ -65,7 +65,7 @@ runs:
       run: |
         mkdir -p .grekt
         printf 'registries:\n' > .grekt/config.yaml
-        echo "$REGISTRIES" >> .grekt/config.yaml
+        echo "$REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
 
     - name: Configure git
       if: inputs.git-user-name != '' && inputs.git-user-email != ''

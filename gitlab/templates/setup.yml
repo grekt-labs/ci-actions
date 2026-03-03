@@ -48,7 +48,7 @@
       if [ -n "$GREKT_REGISTRIES" ]; then
         mkdir -p .grekt
         printf 'registries:\n' > .grekt/config.yaml
-        echo "$GREKT_REGISTRIES" >> .grekt/config.yaml
+        echo "$GREKT_REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
       fi
 
     # Configure git (only if provided)
