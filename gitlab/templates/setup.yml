@@ -2,7 +2,7 @@
 #
 # Usage:
 #   include:
-#     - remote: "https://raw.githubusercontent.com/grekt-labs/actions/main/gitlab/templates/setup.yml"
+#     - remote: "https://raw.githubusercontent.com/grekt-labs/ci-actions/main/gitlab/templates/setup.yml"
 #
 #   my-job:
 #     extends: .grekt-setup
@@ -47,8 +47,8 @@
     - |
       if [ -n "$GREKT_REGISTRIES" ]; then
         mkdir -p .grekt
-        echo "registries:" > .grekt/config.yaml
-        echo "$GREKT_REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
+        printf 'registries:\n' > .grekt/config.yaml
+        echo "$GREKT_REGISTRIES" >> .grekt/config.yaml
       fi
 
     # Configure git (only if provided)
@@ -62,7 +62,13 @@
     - |
       if [ -n "$GREKT_GIT_TOKEN" ]; then
         REPO_URL=$(git remote get-url origin)
-        AUTHENTICATED_URL=$(echo "$REPO_URL" | sed "s|https://gitlab.com/|https://gitlab-ci-token:${GREKT_GIT_TOKEN}@gitlab.com/|")
+        if echo "$REPO_URL" | grep -q "^git@"; then
+          # Convert SSH to HTTPS: git@gitlab.com:owner/repo.git → https://...
+          REPO_PATH=$(echo "$REPO_URL" | sed 's|git@gitlab.com:||')
+          AUTHENTICATED_URL="https://gitlab-ci-token:${GREKT_GIT_TOKEN}@gitlab.com/${REPO_PATH}"
+        else
+          AUTHENTICATED_URL=$(echo "$REPO_URL" | sed "s|https://gitlab.com/|https://gitlab-ci-token:${GREKT_GIT_TOKEN}@gitlab.com/|")
+        fi
         git remote set-url origin "$AUTHENTICATED_URL"
       fi
 
