@@ -30,6 +30,14 @@ inputs:
     description: "Token for git push (sets authenticated remote URL)"
     required: false
     default: ""
+  dashboard-url:
+    description: "Dashboard instance URL (written to .grekt/config.yaml)"
+    required: false
+    default: ""
+  dashboard-token:
+    description: "Dashboard API token (gdk_..., written to .grekt/config.yaml)"
+    required: false
+    default: ""
 
 outputs:
   grekt-version:
@@ -58,14 +66,24 @@ runs:
         npm install -g "@grekt/cli@${{ inputs.grekt-version }}"
 
     - name: Generate config
-      if: inputs.registries != ''
+      if: inputs.registries != '' || inputs.dashboard-url != ''
       shell: bash
       env:
         REGISTRIES: ${{ inputs.registries }}
+        DASHBOARD_URL: ${{ inputs.dashboard-url }}
+        DASHBOARD_TOKEN: ${{ inputs.dashboard-token }}
       run: |
         mkdir -p .grekt
-        printf 'registries:\n' > .grekt/config.yaml
-        echo "$REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
+        > .grekt/config.yaml
+        if [ -n "$REGISTRIES" ]; then
+          printf 'registries:\n' >> .grekt/config.yaml
+          echo "$REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
+        fi
+        if [ -n "$DASHBOARD_URL" ]; then
+          printf 'dashboard:\n' >> .grekt/config.yaml
+          printf '  url: %s\n' "$DASHBOARD_URL" >> .grekt/config.yaml
+          printf '  token: %s\n' "$DASHBOARD_TOKEN" >> .grekt/config.yaml
+        fi
 
     - name: Configure git
       if: inputs.git-user-name != '' && inputs.git-user-email != ''

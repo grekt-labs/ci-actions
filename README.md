@@ -50,6 +50,8 @@ jobs:
 | `git-user-name` | no | — | Git `user.name` for commits |
 | `git-user-email` | no | — | Git `user.email` for commits |
 | `git-token` | no | — | Token for authenticated git push |
+| `dashboard-url` | no | — | Dashboard instance URL |
+| `dashboard-token` | no | — | Dashboard API token (`gdk_...`) |
 
 ### Outputs
 
@@ -87,6 +89,8 @@ release:
 | `GREKT_GIT_USER_NAME` | — | Git `user.name` for commits |
 | `GREKT_GIT_USER_EMAIL` | — | Git `user.email` for commits |
 | `GREKT_GIT_TOKEN` | — | Token for authenticated git push |
+| `GREKT_DASHBOARD_URL` | — | Dashboard instance URL |
+| `GREKT_DASHBOARD_TOKEN` | — | Dashboard API token (`gdk_...`) |
 
 ### Notes
 
@@ -96,7 +100,7 @@ The `.grekt-setup` template installs Node.js automatically if not found in the b
 
 1. **Installs runtime** — sets up Node.js or Bun
 2. **Installs grekt CLI** — via npm at the specified version
-3. **Generates `.grekt/config.yaml`** — from your inline registry definitions
+3. **Generates `.grekt/config.yaml`** — from your inline registry and dashboard definitions
 4. **Configures git** — sets user identity and authenticated remote URL
 
 ## What this does NOT do

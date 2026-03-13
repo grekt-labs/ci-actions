@@ -23,6 +23,8 @@
     GREKT_GIT_USER_NAME: ""
     GREKT_GIT_USER_EMAIL: ""
     GREKT_GIT_TOKEN: ""
+    GREKT_DASHBOARD_URL: ""
+    GREKT_DASHBOARD_TOKEN: ""
 
   before_script:
     # Ensure npm is available — install Node if missing
@@ -43,12 +45,20 @@
     # Install grekt CLI
     - npm install -g "@grekt/cli@${GREKT_VERSION}"
 
-    # Generate config from GREKT_REGISTRIES variable
+    # Generate config from variables
     - |
-      if [ -n "$GREKT_REGISTRIES" ]; then
+      if [ -n "$GREKT_REGISTRIES" ] || [ -n "$GREKT_DASHBOARD_URL" ]; then
         mkdir -p .grekt
-        printf 'registries:\n' > .grekt/config.yaml
-        echo "$GREKT_REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
+        > .grekt/config.yaml
+        if [ -n "$GREKT_REGISTRIES" ]; then
+          printf 'registries:\n' >> .grekt/config.yaml
+          echo "$GREKT_REGISTRIES" | sed 's/^/  /' >> .grekt/config.yaml
+        fi
+        if [ -n "$GREKT_DASHBOARD_URL" ]; then
+          printf 'dashboard:\n' >> .grekt/config.yaml
+          printf '  url: %s\n' "$GREKT_DASHBOARD_URL" >> .grekt/config.yaml
+          printf '  token: %s\n' "$GREKT_DASHBOARD_TOKEN" >> .grekt/config.yaml
+        fi
       fi
 
     # Configure git (only if provided)
